@@ -129,11 +129,13 @@ class MeuBot(discord.Client):
     async def setup_hook(self):
         self.loop.create_task(start_web_server())
 
-        # LIMPA TUDO (global e guild)
+        # LIMPA TODOS OS COMANDOS (IMPORTANTE)
         self.tree.clear_commands(guild=None)
 
-        await self.tree.sync()
-        print("Commands reset and synced globally")
+        # REGISTRA TODOS DE NOVO GLOBAL
+        synced = await self.tree.sync()
+
+        print(f"SYNC FINAL: {len(synced)} comandos registrados")
 
 
 bot = MeuBot()
