@@ -780,33 +780,41 @@ async def on_raw_message_delete(payload):
 async def rank(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
 
-    if interaction.channel_id != RANK_CHANNEL_ID:
+    try:
+        if interaction.channel_id != RANK_CHANNEL_ID:
+            await interaction.followup.send(
+                "📍 Use this command in the ranking channel.",
+                ephemeral=True
+            )
+            return
+
+        data = await asyncio.to_thread(load_data)
+        users = data.get("users", {})
+        user_id = str(interaction.user.id)
+
+        if user_id not in users:
+            await interaction.followup.send(
+                "You don't have any points yet.",
+                ephemeral=True
+            )
+            return
+
+        points = users[user_id].get("points", 0)
+        tasks = users[user_id].get("tasks", 0)
+
         await interaction.followup.send(
-            "📍 Use this command in the ranking channel.",
+            f"📊 **Your Stats**\n\n"
+            f"<:Pete_Toon_Trophy:1499092782529380535> Points: **{points}**\n"
+            f"<:Pete_verified_by_lil_oldman:1499092210811932834> Completed Tasks: **{tasks}**",
             ephemeral=True
         )
-        return
 
-    data = load_data()
-    users = data.get("users", {})
-    user_id = str(interaction.user.id)
-
-    if user_id not in users:
+    except Exception as e:
+        print("Rank command error:", e)
         await interaction.followup.send(
-            "You don't have any points yet.",
+            "❌ An error occurred while loading your rank.",
             ephemeral=True
         )
-        return
-
-    points = users[user_id].get("points", 0)
-    tasks = users[user_id].get("tasks", 0)
-
-    await interaction.followup.send(
-        f"📊 **Your Stats**\n\n"
-        f"<:Pete_Toon_Trophy:1499092782529380535> Points: **{points}**\n"
-        f"<:Pete_verified_by_lil_oldman:1499092210811932834> Completed Tasks: **{tasks}**",
-        ephemeral=True
-    )
 
 
 @bot.tree.command(name="top", description="View the server ranking")
@@ -814,56 +822,64 @@ async def rank(interaction: discord.Interaction):
 async def top(interaction: discord.Interaction, page: int = 1):
     await interaction.response.defer()
 
-    if interaction.channel_id != RANK_CHANNEL_ID:
+    try:
+        if interaction.channel_id != RANK_CHANNEL_ID:
+            await interaction.followup.send(
+                "📍 Use this command in the ranking channel.",
+                ephemeral=True
+            )
+            return
+
+        page = max(1, min(page, 10))
+
+        data = await asyncio.to_thread(load_data)
+        users = data.get("users", {})
+
+        if not users:
+            await interaction.followup.send("No ranking data yet.")
+            return
+
+        ranking = sorted(
+            users.items(),
+            key=lambda x: x[1].get("points", 0),
+            reverse=True
+        )[:100]
+
+        total_pages = max(1, (len(ranking) + 9) // 10)
+
+        if page > total_pages:
+            await interaction.followup.send(
+                f"That page doesn't exist yet. Current max page: {total_pages}."
+            )
+            return
+
+        start = (page - 1) * 10
+        page_ranking = ranking[start:start + 10]
+
+        medals = ["🥇", "🥈", "🥉"]
+        text = ""
+
+        for i, (user_id, info) in enumerate(page_ranking, start=start + 1):
+            medal = medals[i - 1] if i <= 3 else f"{i}."
+            points = info.get("points", 0)
+            tasks = info.get("tasks", 0)
+
+            text += (
+                f"{medal} <@{user_id}> — "
+                f"<:Pete_Toon_Trophy:1499092782529380535> {points} pts | "
+                f"<:Pete_verified_by_lil_oldman:1499092210811932834> {tasks} tasks\n"
+            )
+
         await interaction.followup.send(
-            "📍 Use this command in the ranking channel.",
+            f"🏆 **Ranking — Page {page}/{total_pages}**\n\n{text}"
+        )
+
+    except Exception as e:
+        print("Top command error:", e)
+        await interaction.followup.send(
+            "❌ An error occurred while loading the ranking.",
             ephemeral=True
         )
-        return
-
-    page = max(1, min(page, 10))
-
-    data = load_data()
-    users = data.get("users", {})
-
-    if not users:
-        await interaction.followup.send("No ranking data yet.")
-        return
-
-    ranking = sorted(
-        users.items(),
-        key=lambda x: x[1].get("points", 0),
-        reverse=True
-    )[:100]
-
-    total_pages = max(1, (len(ranking) + 9) // 10)
-
-    if page > total_pages:
-        await interaction.followup.send(
-            f"That page doesn't exist yet. Current max page: {total_pages}."
-        )
-        return
-
-    start = (page - 1) * 10
-    page_ranking = ranking[start:start + 10]
-
-    medals = ["🥇", "🥈", "🥉"]
-    text = ""
-
-    for i, (user_id, info) in enumerate(page_ranking, start=start + 1):
-        medal = medals[i - 1] if i <= 3 else f"{i}."
-        points = info.get("points", 0)
-        tasks = info.get("tasks", 0)
-
-        text += (
-            f"{medal} <@{user_id}> — "
-            f"<:Pete_Toon_Trophy:1499092782529380535> {points} pts | "
-            f"<:Pete_verified_by_lil_oldman:1499092210811932834> {tasks} tasks\n"
-        )
-
-    await interaction.followup.send(
-        f"🏆 **Ranking — Page {page}/{total_pages}**\n\n{text}"
-    )
 
 
 
