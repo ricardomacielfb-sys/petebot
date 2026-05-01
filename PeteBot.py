@@ -3,6 +3,7 @@ from discord import app_commands
 from discord.ext import tasks
 import requests
 import json
+import asyncio   # ✅ correto
 import os
 from aiohttp import web
 
@@ -327,9 +328,11 @@ async def on_ready():
 
     if not update_invasions_channel.is_running():
         update_invasions_channel.start()
+        print("Invasion panel loop started")
 
     if not update_fo_panel.is_running():
         update_fo_panel.start()
+        print("Field Office panel loop started")
 
 
 @bot.tree.command(name="test", description="Test command", guild=guild)
@@ -346,15 +349,19 @@ async def update_invasions_channel():
         return
 
     try:
-        invasions_data = requests.get(
-            "https://www.toontownrewritten.com/api/invasions",
-            timeout=10
-        ).json()
+        invasions_data = await asyncio.to_thread(
+            lambda: requests.get(
+                "https://www.toontownrewritten.com/api/invasions",
+                timeout=10
+            ).json()
+        )
 
-        population_data = requests.get(
-            "https://www.toontownrewritten.com/api/population",
-            timeout=10
-        ).json()
+        population_data = await asyncio.to_thread(
+            lambda: requests.get(
+                "https://www.toontownrewritten.com/api/population",
+                timeout=10
+            ).json()
+        )
 
     except Exception as e:
         print("Invasion API error:", e)
@@ -437,10 +444,12 @@ async def update_fo_panel():
         return
 
     try:
-        data = requests.get(
-            "https://www.toontownrewritten.com/api/fieldoffices",
-            timeout=10
-        ).json()
+        data = await asyncio.to_thread(
+            lambda: requests.get(
+                "https://www.toontownrewritten.com/api/fieldoffices",
+                timeout=10
+            ).json()
+        )
 
     except Exception as e:
         print("Field Office API error:", e)
