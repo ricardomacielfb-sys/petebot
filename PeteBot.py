@@ -25,9 +25,7 @@ async def start_web_server():
 
 
 TOKEN = os.getenv("TOKEN")
-print("DEBUG TOKEN:", TOKEN)  # 👈 AQUI
 
-print("TOKEN:", TOKEN)
 
 GUILD_ID = 1140792771624583292
 
@@ -856,7 +854,6 @@ async def top(interaction: discord.Interaction, page: int = 1):
     )
 
 
-bot = MeuBot()
 
 if __name__ == "__main__":
     print("INICIANDO BOT...")
