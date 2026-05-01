@@ -130,7 +130,7 @@ class MeuBot(discord.Client):
         self.loop.create_task(start_web_server())
 
         guild = discord.Object(id=GUILD_ID)
-        synced = await self.tree.sync(guild=guild)
+        synced = await self.tree.sync()
         print(f"Synced {len(synced)} command(s).")
 
 
