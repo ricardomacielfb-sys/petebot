@@ -129,9 +129,8 @@ class MeuBot(discord.Client):
     async def setup_hook(self):
         self.loop.create_task(start_web_server())
 
-        guild = discord.Object(id=GUILD_ID)
         synced = await self.tree.sync()
-        print(f"Synced {len(synced)} command(s).")
+        print(f"Synced {len(synced)} global command(s).")
 
 
 bot = MeuBot()
@@ -768,7 +767,7 @@ async def on_raw_message_delete(payload):
     print(f"Deleted print removed {points} point(s) from user {author_id}.")
 
 
-@bot.tree.command(name="rank", description="View your points", guild=guild)
+@bot.tree.command(name="rank", description="View your points")
 async def rank(interaction: discord.Interaction):
     if interaction.channel_id != RANK_CHANNEL_ID:
         await interaction.response.send_message(
@@ -799,7 +798,7 @@ async def rank(interaction: discord.Interaction):
     )
 
 
-@bot.tree.command(name="top", description="View the server ranking", guild=guild)
+@bot.tree.command(name="top", description="View the server ranking")
 @app_commands.describe(page="Page number from 1 to 10")
 async def top(interaction: discord.Interaction, page: int = 1):
     if interaction.channel_id != RANK_CHANNEL_ID:
