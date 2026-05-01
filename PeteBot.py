@@ -778,9 +778,11 @@ async def on_raw_message_delete(payload):
 
 @bot.tree.command(name="rank", description="View your points")
 async def rank(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
+    print("DEBUG: /rank chamado")
 
     try:
+        await interaction.response.defer(ephemeral=True)
+
         if interaction.channel_id != RANK_CHANNEL_ID:
             await interaction.followup.send(
                 "📍 Use this command in the ranking channel.",
@@ -810,19 +812,31 @@ async def rank(interaction: discord.Interaction):
         )
 
     except Exception as e:
-        print("Rank command error:", e)
-        await interaction.followup.send(
-            "❌ An error occurred while loading your rank.",
-            ephemeral=True
-        )
+        print("Rank command error:", repr(e))
+
+        try:
+            if interaction.response.is_done():
+                await interaction.followup.send(
+                    "❌ An error occurred while loading your rank.",
+                    ephemeral=True
+                )
+            else:
+                await interaction.response.send_message(
+                    "❌ An error occurred while loading your rank.",
+                    ephemeral=True
+                )
+        except Exception as send_error:
+            print("Rank error response failed:", repr(send_error))
 
 
 @bot.tree.command(name="top", description="View the server ranking")
 @app_commands.describe(page="Page number from 1 to 10")
 async def top(interaction: discord.Interaction, page: int = 1):
-    await interaction.response.defer()
+    print("DEBUG: /top chamado")
 
     try:
+        await interaction.response.defer(ephemeral=False)
+
         if interaction.channel_id != RANK_CHANNEL_ID:
             await interaction.followup.send(
                 "📍 Use this command in the ranking channel.",
@@ -875,11 +889,21 @@ async def top(interaction: discord.Interaction, page: int = 1):
         )
 
     except Exception as e:
-        print("Top command error:", e)
-        await interaction.followup.send(
-            "❌ An error occurred while loading the ranking.",
-            ephemeral=True
-        )
+        print("Top command error:", repr(e))
+
+        try:
+            if interaction.response.is_done():
+                await interaction.followup.send(
+                    "❌ An error occurred while loading the ranking.",
+                    ephemeral=True
+                )
+            else:
+                await interaction.response.send_message(
+                    "❌ An error occurred while loading the ranking.",
+                    ephemeral=True
+                )
+        except Exception as send_error:
+            print("Top error response failed:", repr(send_error))
 
 
 
