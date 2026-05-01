@@ -778,8 +778,10 @@ async def on_raw_message_delete(payload):
 
 @bot.tree.command(name="rank", description="View your points")
 async def rank(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+
     if interaction.channel_id != RANK_CHANNEL_ID:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "📍 Use this command in the ranking channel.",
             ephemeral=True
         )
@@ -790,7 +792,7 @@ async def rank(interaction: discord.Interaction):
     user_id = str(interaction.user.id)
 
     if user_id not in users:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "You don't have any points yet.",
             ephemeral=True
         )
@@ -799,10 +801,10 @@ async def rank(interaction: discord.Interaction):
     points = users[user_id].get("points", 0)
     tasks = users[user_id].get("tasks", 0)
 
-    await interaction.response.send_message(
+    await interaction.followup.send(
         f"📊 **Your Stats**\n\n"
         f"<:Pete_Toon_Trophy:1499092782529380535> Points: **{points}**\n"
-        f"<:Pete_verified_by_lil_oldman:1499092210811932834> Completed Tasks: **{tasks}",
+        f"<:Pete_verified_by_lil_oldman:1499092210811932834> Completed Tasks: **{tasks}**",
         ephemeral=True
     )
 
@@ -810,8 +812,10 @@ async def rank(interaction: discord.Interaction):
 @bot.tree.command(name="top", description="View the server ranking")
 @app_commands.describe(page="Page number from 1 to 10")
 async def top(interaction: discord.Interaction, page: int = 1):
+    await interaction.response.defer()
+
     if interaction.channel_id != RANK_CHANNEL_ID:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "📍 Use this command in the ranking channel.",
             ephemeral=True
         )
@@ -823,7 +827,7 @@ async def top(interaction: discord.Interaction, page: int = 1):
     users = data.get("users", {})
 
     if not users:
-        await interaction.response.send_message("No ranking data yet.")
+        await interaction.followup.send("No ranking data yet.")
         return
 
     ranking = sorted(
@@ -835,7 +839,7 @@ async def top(interaction: discord.Interaction, page: int = 1):
     total_pages = max(1, (len(ranking) + 9) // 10)
 
     if page > total_pages:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"That page doesn't exist yet. Current max page: {total_pages}."
         )
         return
@@ -857,7 +861,7 @@ async def top(interaction: discord.Interaction, page: int = 1):
             f"<:Pete_verified_by_lil_oldman:1499092210811932834> {tasks} tasks\n"
         )
 
-    await interaction.response.send_message(
+    await interaction.followup.send(
         f"🏆 **Ranking — Page {page}/{total_pages}**\n\n{text}"
     )
 
