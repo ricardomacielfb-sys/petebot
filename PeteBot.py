@@ -202,37 +202,43 @@ def find_rank_role_id_by_points(points):
 
 
 async def cleanup_promotion_messages(member, role_id, keep_one=True):
-    promotion_channel = bot.get_channel(PROMOTION_CHANNEL_ID)
+    promotion_channel = await get_channel_safe(PROMOTION_CHANNEL_ID)
 
     if promotion_channel is None:
-        promotion_channel = await bot.fetch_channel(PROMOTION_CHANNEL_ID)
+        print("Promotion cleanup error: channel not found or no access.")
+        return 0
 
     role_mention = f"<@&{role_id}>"
     found = []
 
-    async for msg in promotion_channel.history(limit=100):
-        if (
-            msg.author == bot.user
-            and member.mention in msg.content
-            and role_mention in msg.content
-            and "has been promoted to" in msg.content
-        ):
-            found.append(msg)
+    try:
+        async for msg in promotion_channel.history(limit=100):
+            if (
+                msg.author == bot.user
+                and member.mention in msg.content
+                and role_mention in msg.content
+                and "has been promoted to" in msg.content
+            ):
+                found.append(msg)
 
-    if keep_one:
-        for msg in found[1:]:
-            try:
-                await msg.delete()
-            except Exception:
-                pass
-    else:
-        for msg in found:
-            try:
-                await msg.delete()
-            except Exception:
-                pass
+        if keep_one:
+            for msg in found[1:]:
+                try:
+                    await msg.delete()
+                except Exception as e:
+                    print("Promotion cleanup delete error:", e)
+        else:
+            for msg in found:
+                try:
+                    await msg.delete()
+                except Exception as e:
+                    print("Promotion cleanup delete error:", e)
 
-    return len(found)
+        return len(found)
+
+    except Exception as e:
+        print("Promotion cleanup error:", e)
+        return 0
 
 
 async def update_rank_role(guild_obj, member, points):
@@ -290,21 +296,17 @@ async def update_rank_role(guild_obj, member, points):
         user_id = str(member.id)
 
         if old_threshold is not None and new_threshold > old_threshold:
-            promotion_channel = bot.get_channel(PROMOTION_CHANNEL_ID)
+            promotion_channel = await get_channel_safe(PROMOTION_CHANNEL_ID)
 
             if promotion_channel is None:
-                promotion_channel = await bot.fetch_channel(PROMOTION_CHANNEL_ID)
+                print("Promotion channel not found or no access.")
+                return
 
-            existing = await cleanup_promotion_messages(
-                member,
-                new_role_id,
-                keep_one=True
+            print(f"PROMOTION DEBUG: {member} promoted to {new_role}")
+
+            await promotion_channel.send(
+                f"{member.mention} has been promoted to {new_role.mention}! <:Pete_imonfire:1497814466195099708>"
             )
-
-            if existing == 0:
-                await promotion_channel.send(
-                    f"{member.mention} has been promoted to {new_role.mention}! <:Pete_imonfire:1497814466195099708>"
-                )
 
             promotions[user_id] = str(new_role_id)
             save_data(data)
@@ -314,6 +316,15 @@ async def update_rank_role(guild_obj, member, points):
                 new_role_id,
                 keep_one=True
             )
+
+    except discord.Forbidden:
+        print("Bot does not have permission to manage roles or send promotion messages.")
+
+    except discord.HTTPException as e:
+        print("Error updating role or sending promotion:", e)
+
+    except Exception as e:
+        print("Unexpected rank update error:", e)
 
     except discord.Forbidden:
         print("Bot does not have permission to manage roles.")
