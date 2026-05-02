@@ -295,7 +295,30 @@ async def update_rank_role(guild_obj, member, points):
 
         user_id = str(member.id)
 
-        if old_threshold is not None and new_threshold > old_threshold:
+        if old_threshold is None:
+            old_threshold = -1
+
+        if new_threshold > old_threshold:
+            promotion_channel = await get_channel_safe(PROMOTION_CHANNEL_ID)
+
+        if promotion_channel is None:
+            print("Promotion channel not found or no access.")
+            return
+
+        print(f"PROMOTION DEBUG: {member} promoted to {new_role}")
+
+        await promotion_channel.send(
+            f"{member.mention} has been promoted to {new_role.mention}! <:Pete_imonfire:1497814466195099708>"
+        )
+
+        promotions[user_id] = str(new_role_id)
+        save_data(data)
+
+        await cleanup_promotion_messages(
+            member,
+            new_role_id,
+            keep_one=True
+        )
             promotion_channel = await get_channel_safe(PROMOTION_CHANNEL_ID)
 
             if promotion_channel is None:
