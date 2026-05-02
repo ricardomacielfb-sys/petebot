@@ -132,7 +132,7 @@ class MeuBot(discord.Client):
     async def setup_hook(self):
         self.loop.create_task(start_web_server())
 
-        synced = await self.tree.sync(guild=guild)
+        synced = await self.tree.sync()
         print(f"SYNC OK: {len(synced)} comandos")
 
 
