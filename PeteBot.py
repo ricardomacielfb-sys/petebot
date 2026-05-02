@@ -129,11 +129,11 @@ class MeuBot(discord.Client):
         super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
 
-    async def setup_hook(self):
-        self.loop.create_task(start_web_server())
+        async def setup_hook(self):
+            self.loop.create_task(start_web_server())
 
-        synced = await self.tree.sync()
-        print(f"SYNC OK: {len(synced)} comandos")
+            synced = await self.tree.sync()
+            print(f"SYNC OK: {len(synced)} comandos")
 
 
 bot = MeuBot()
