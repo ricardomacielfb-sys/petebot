@@ -802,10 +802,7 @@ async def rank(interaction: discord.Interaction):
     print("DEBUG: /rank chamado", flush=True)
 
     try:
-        await interaction.response.send_message(
-            "⏳ Loading your rank...",
-            ephemeral=True
-        )
+        await interaction.response.defer(ephemeral=True)
 
         if interaction.channel_id != RANK_CHANNEL_ID:
             await interaction.edit_original_response(
@@ -857,9 +854,7 @@ async def top(interaction: discord.Interaction, page: int = 1):
     print("DEBUG: /top chamado", flush=True)
 
     try:
-        await interaction.response.send_message(
-            "⏳ Loading ranking..."
-        )
+        await interaction.response.defer()
 
         if interaction.channel_id != RANK_CHANNEL_ID:
             await interaction.edit_original_response(
@@ -932,19 +927,24 @@ async def top(interaction: discord.Interaction, page: int = 1):
 
 @bot.tree.command(name="promotions", description="View promoted members", guild=guild)
 async def promotions(interaction: discord.Interaction):
+    print("DEBUG: /promotions chamado", flush=True)
+
     try:
+        await interaction.response.defer()
+
         if interaction.channel_id != PROMOTION_CHANNEL_ID:
-            await interaction.response.send_message(
-                "📍 Use this command in the promoted channel.",
-                ephemeral=True
+            await interaction.edit_original_response(
+                content="📍 Use this command in the promoted channel."
             )
             return
 
-        data = load_data()
+        data = await asyncio.to_thread(load_data)
         promotions_data = data.get("last_promotions", {})
 
         if not promotions_data:
-            await interaction.response.send_message("No promoted members found.")
+            await interaction.edit_original_response(
+                content="No promoted members found."
+            )
             return
 
         lines = []
@@ -959,20 +959,25 @@ async def promotions(interaction: discord.Interaction):
 
         text = "\n".join(lines)
 
-        await interaction.response.send_message(
-            f"📈 **Promoted Members**\n\n{text}"
+        await interaction.edit_original_response(
+            content=f"📈 **Promoted Members**\n\n{text}"
         )
 
     except Exception as e:
         print("Promotions command error:", repr(e), flush=True)
 
-        if interaction.response.is_done():
-            await interaction.followup.send("❌ Error loading promotions.")
-        else:
-            await interaction.response.send_message(
-                "❌ Error loading promotions.",
-                ephemeral=True
-            )
+        try:
+            if interaction.response.is_done():
+                await interaction.edit_original_response(
+                    content="❌ Error loading promotions."
+                )
+            else:
+                await interaction.response.send_message(
+                    "❌ Error loading promotions.",
+                    ephemeral=True
+                )
+        except Exception as send_error:
+            print("Promotions error response failed:", repr(send_error), flush=True)
 
 
 
