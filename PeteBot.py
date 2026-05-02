@@ -958,5 +958,15 @@ async def promotions(interaction: discord.Interaction):
 
 
 if __name__ == "__main__":
-    print("INICIANDO BOT...")
-    bot.run(TOKEN)
+    print("INICIANDO BOT...", flush=True)
+
+    try:
+        if not TOKEN:
+            print("ERRO: TOKEN não encontrado!", flush=True)
+        else:
+            print("TOKEN OK", flush=True)
+
+        bot.run(TOKEN)
+
+    except Exception as e:
+        print("ERRO AO INICIAR BOT:", repr(e), flush=True)
