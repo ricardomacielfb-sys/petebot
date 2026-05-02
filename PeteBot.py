@@ -244,6 +244,8 @@ async def cleanup_promotion_messages(member, role_id, keep_one=True):
 async def update_rank_role(guild_obj, member, points):
     points = int(points)
 
+    print(f"DEBUG: update_rank_role chamado | member={member} | points={points}")
+
     data = load_data()
     data.setdefault("last_promotions", {})
     promotions = data["last_promotions"]
@@ -264,6 +266,9 @@ async def update_rank_role(guild_obj, member, points):
                 old_threshold = required_points
                 break
 
+    if old_threshold is None:
+        old_threshold = -1
+
     new_role_id = find_rank_role_id_by_points(points)
 
     new_threshold = 0
@@ -272,8 +277,11 @@ async def update_rank_role(guild_obj, member, points):
             new_threshold = required_points
             break
 
-    if old_role_id == new_role_id:
-        return
+    print(
+        f"DEBUG: rank check | old_role_id={old_role_id} | "
+        f"old_threshold={old_threshold} | new_role_id={new_role_id} | "
+        f"new_threshold={new_threshold}"
+    )
 
     new_role = guild_obj.get_role(new_role_id)
 
@@ -294,9 +302,8 @@ async def update_rank_role(guild_obj, member, points):
             await member.add_roles(new_role, reason="Rank role update")
 
         user_id = str(member.id)
-
-        if old_threshold is None:
-            old_threshold = -1
+        promotions[user_id] = str(new_role_id)
+        save_data(data)
 
         if new_threshold > old_threshold:
             promotion_channel = await get_channel_safe(PROMOTION_CHANNEL_ID)
@@ -311,14 +318,20 @@ async def update_rank_role(guild_obj, member, points):
                 f"{member.mention} has been promoted to {new_role.mention}! <:Pete_imonfire:1497814466195099708>"
             )
 
-            promotions[user_id] = str(new_role_id)
-            save_data(data)
-
             await cleanup_promotion_messages(
                 member,
                 new_role_id,
                 keep_one=True
             )
+
+    except discord.Forbidden:
+        print("Bot does not have permission to manage roles or send promotion messages.")
+
+    except discord.HTTPException as e:
+        print("Error updating role or sending promotion:", e)
+
+    except Exception as e:
+        print("Unexpected rank update error:", e)
 
     except discord.Forbidden:
         print("Bot does not have permission to manage roles or send promotion messages.")
