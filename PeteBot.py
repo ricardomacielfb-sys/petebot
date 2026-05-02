@@ -1,5 +1,3 @@
-print("DEBUG VERSION 2", flush=True)
-
 import discord
 from discord import app_commands
 from discord.ext import tasks
@@ -129,11 +127,11 @@ class MeuBot(discord.Client):
         super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
 
-        async def setup_hook(self):
-            await start_web_server()
+    async def setup_hook(self):
+        self.loop.create_task(start_web_server())
 
-            synced = await self.tree.sync(guild=guild)
-            print(f"SYNC OK: {len(synced)} comandos", flush=True)
+        synced = await self.tree.sync()
+        print(f"SYNC OK: {len(synced)} comandos")
 
 
 bot = MeuBot()
@@ -799,17 +797,19 @@ async def on_raw_message_delete(payload):
     print(f"Deleted print removed {points} point(s) from user {author_id}.")
 
 
-@bot.tree.command(name="rank", description="View your points", guild=guild)
+@bot.tree.command(name="rank", description="View your points")
 async def rank(interaction: discord.Interaction):
     print("DEBUG: /rank chamado", flush=True)
 
     try:
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.send_message(
+            "⏳ Loading your rank...",
+            ephemeral=True
+        )
 
         if interaction.channel_id != RANK_CHANNEL_ID:
-            await interaction.followup.send(
-                "📍 Use this command in the ranking channel.",
-                ephemeral=True
+            await interaction.edit_original_response(
+                content="📍 Use this command in the ranking channel."
             )
             return
 
@@ -818,44 +818,52 @@ async def rank(interaction: discord.Interaction):
         user_id = str(interaction.user.id)
 
         if user_id not in users:
-            await interaction.followup.send(
-                "You don't have any points yet.",
-                ephemeral=True
+            await interaction.edit_original_response(
+                content="You don't have any points yet."
             )
             return
 
         points = users[user_id].get("points", 0)
         tasks = users[user_id].get("tasks", 0)
 
-        await interaction.followup.send(
+        await interaction.edit_original_response(
             content=(
                 f"📊 **Your Stats**\n\n"
                 f"<:Pete_Toon_Trophy:1499092782529380535> Points: **{points}**\n"
                 f"<:Pete_verified_by_lil_oldman:1499092210811932834> Completed Tasks: **{tasks}**"
-            ),
-            ephemeral=True
+            )
         )
 
     except Exception as e:
         print("Rank command error:", repr(e), flush=True)
-        await interaction.followup.send(
-            "❌ An error occurred while loading your rank.",
-            ephemeral=True
-        )
+
+        try:
+            if interaction.response.is_done():
+                await interaction.edit_original_response(
+                    content="❌ An error occurred while loading your rank."
+                )
+            else:
+                await interaction.response.send_message(
+                    "❌ An error occurred while loading your rank.",
+                    ephemeral=True
+                )
+        except Exception as send_error:
+            print("Rank error response failed:", repr(send_error), flush=True)
 
 
-@bot.tree.command(name="top", description="View the server ranking", guild=guild)
+@bot.tree.command(name="top", description="View the server ranking")
 @app_commands.describe(page="Page number from 1 to 10")
 async def top(interaction: discord.Interaction, page: int = 1):
     print("DEBUG: /top chamado", flush=True)
 
     try:
-        await interaction.response.defer()
+        await interaction.response.send_message(
+            "⏳ Loading ranking..."
+        )
 
         if interaction.channel_id != RANK_CHANNEL_ID:
-            await interaction.followup.send(
-                "📍 Use this command in the ranking channel.",
-                ephemeral=True
+            await interaction.edit_original_response(
+                content="📍 Use this command in the ranking channel."
             )
             return
 
@@ -865,8 +873,8 @@ async def top(interaction: discord.Interaction, page: int = 1):
         users = data.get("users", {})
 
         if not users:
-            await interaction.followup.send(
-                "No ranking data yet."
+            await interaction.edit_original_response(
+                content="No ranking data yet."
             )
             return
 
@@ -879,8 +887,8 @@ async def top(interaction: discord.Interaction, page: int = 1):
         total_pages = max(1, (len(ranking) + 9) // 10)
 
         if page > total_pages:
-            await interaction.followup.send(
-                f"That page doesn't exist yet. Current max page: {total_pages}."
+            await interaction.edit_original_response(
+                content=f"That page doesn't exist yet. Current max page: {total_pages}."
             )
             return
 
@@ -901,74 +909,28 @@ async def top(interaction: discord.Interaction, page: int = 1):
                 f"<:Pete_verified_by_lil_oldman:1499092210811932834> {tasks} tasks\n"
             )
 
-        await interaction.followup.send(
-            f"🏆 **Ranking — Page {page}/{total_pages}**\n\n{text}"
+        await interaction.edit_original_response(
+            content=f"🏆 **Ranking — Page {page}/{total_pages}**\n\n{text}"
         )
 
     except Exception as e:
         print("Top command error:", repr(e), flush=True)
-        await interaction.followup.send(
-            "❌ An error occurred while loading the ranking."
-        )
 
-
-@bot.tree.command(name="promotions", description="View promoted members", guild=guild)
-async def promotions(interaction: discord.Interaction):
-    print("DEBUG: /promotions chamado", flush=True)
-
-    try:
-        await interaction.response.defer()
-
-        if interaction.channel_id != PROMOTION_CHANNEL_ID:
-            await interaction.followup.send(
-                "📍 Use this command in the promoted channel.",
-                ephemeral=True
-            )
-            return
-
-        data = await asyncio.to_thread(load_data)
-        promotions_data = data.get("last_promotions", {})
-
-        if not promotions_data:
-            await interaction.followup.send(
-                "No promoted members found."
-            )
-            return
-
-        lines = []
-
-        for user_id, role_id in promotions_data.items():
-            try:
-                role = interaction.guild.get_role(int(role_id))
-                role_text = role.mention if role else f"Unknown role `{role_id}`"
-                lines.append(f"<@{user_id}> → {role_text}")
-            except Exception:
-                lines.append(f"`{user_id}` → invalid role data")
-
-        text = "\n".join(lines)
-
-        await interaction.followup.send(
-            f"📈 **Promoted Members**\n\n{text}"
-        )
-
-    except Exception as e:
-        print("Promotions command error:", repr(e), flush=True)
-        await interaction.followup.send(
-            "❌ Error loading promotions."
-        )
+        try:
+            if interaction.response.is_done():
+                await interaction.edit_original_response(
+                    content="❌ An error occurred while loading the ranking."
+                )
+            else:
+                await interaction.response.send_message(
+                    "❌ An error occurred while loading the ranking.",
+                    ephemeral=True
+                )
+        except Exception as send_error:
+            print("Top error response failed:", repr(send_error), flush=True)
 
 
 
 if __name__ == "__main__":
-    print("INICIANDO BOT...", flush=True)
-
-    try:
-        if not TOKEN:
-            print("ERRO: TOKEN não encontrado!", flush=True)
-        else:
-            print("TOKEN OK", flush=True)
-
-        bot.run(TOKEN)
-
-    except Exception as e:
-        print("ERRO AO INICIAR BOT:", repr(e), flush=True)
+    print("INICIANDO BOT...")
+    bot.run(TOKEN)
