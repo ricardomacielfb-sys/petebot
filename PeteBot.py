@@ -130,7 +130,7 @@ class MeuBot(discord.Client):
     async def setup_hook(self):
         self.loop.create_task(start_web_server())
 
-        synced = await self.tree.sync()
+        synced = await self.tree.sync(guild=guild)
         print(f"SYNC OK: {len(synced)} comandos")
 
 
@@ -797,7 +797,7 @@ async def on_raw_message_delete(payload):
     print(f"Deleted print removed {points} point(s) from user {author_id}.")
 
 
-@bot.tree.command(name="rank", description="View your points")
+@bot.tree.command(name="rank", description="View your points", guild=guild)
 async def rank(interaction: discord.Interaction):
     print("DEBUG: /rank chamado", flush=True)
 
@@ -851,7 +851,7 @@ async def rank(interaction: discord.Interaction):
             print("Rank error response failed:", repr(send_error), flush=True)
 
 
-@bot.tree.command(name="top", description="View the server ranking")
+@bot.tree.command(name="top", description="View the server ranking", guild=guild)
 @app_commands.describe(page="Page number from 1 to 10")
 async def top(interaction: discord.Interaction, page: int = 1):
     print("DEBUG: /top chamado", flush=True)
@@ -928,6 +928,51 @@ async def top(interaction: discord.Interaction, page: int = 1):
                 )
         except Exception as send_error:
             print("Top error response failed:", repr(send_error), flush=True)
+
+
+@bot.tree.command(name="promotions", description="View promoted members", guild=guild)
+async def promotions(interaction: discord.Interaction):
+    try:
+        if interaction.channel_id != PROMOTION_CHANNEL_ID:
+            await interaction.response.send_message(
+                "📍 Use this command in the promoted channel.",
+                ephemeral=True
+            )
+            return
+
+        data = load_data()
+        promotions_data = data.get("last_promotions", {})
+
+        if not promotions_data:
+            await interaction.response.send_message("No promoted members found.")
+            return
+
+        lines = []
+
+        for user_id, role_id in promotions_data.items():
+            try:
+                role = interaction.guild.get_role(int(role_id))
+                role_text = role.mention if role else f"Unknown role `{role_id}`"
+                lines.append(f"<@{user_id}> → {role_text}")
+            except Exception:
+                lines.append(f"`{user_id}` → invalid role data")
+
+        text = "\n".join(lines)
+
+        await interaction.response.send_message(
+            f"📈 **Promoted Members**\n\n{text}"
+        )
+
+    except Exception as e:
+        print("Promotions command error:", repr(e), flush=True)
+
+        if interaction.response.is_done():
+            await interaction.followup.send("❌ Error loading promotions.")
+        else:
+            await interaction.response.send_message(
+                "❌ Error loading promotions.",
+                ephemeral=True
+            )
 
 
 
