@@ -1,3 +1,5 @@
+print("DEBUG VERSION 2", flush=True)
+
 import discord
 from discord import app_commands
 from discord.ext import tasks
