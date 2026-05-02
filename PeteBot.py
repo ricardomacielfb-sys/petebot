@@ -42,6 +42,7 @@ invasion_message = None
 fo_message = None
 last_invasion_data = None
 last_fo_data = None
+last_invasion_progress = {}
 processing_messages = set()
 last_promotions = {}
 
@@ -363,7 +364,7 @@ async def test(interaction: discord.Interaction):
 
 @tasks.loop(minutes=1)
 async def update_invasions_channel():
-    global invasion_message, last_invasion_data
+    global invasion_message, last_invasion_data, last_invasion_progress
 
     channel = await get_channel_safe(INVASION_CHANNEL_ID)
     if channel is None:
@@ -391,6 +392,8 @@ async def update_invasions_channel():
     invasions = invasions_data.get("invasions", {})
     districts = population_data.get("populationByDistrict", {})
 
+    now = asyncio.get_event_loop().time()
+
     embed = discord.Embed(
         title="🚨 Toontown Rewritten District Status",
         color=discord.Color.red()
@@ -399,22 +402,59 @@ async def update_invasions_channel():
     active_text = ""
     available_text = ""
 
+    active_districts = set()
+
     for district, population in districts.items():
         if district in invasions and isinstance(invasions[district], dict):
+            active_districts.add(district)
+
             cog = invasions[district].get("type", "Unknown Cog")
             progress = invasions[district].get("progress", "0/1")
 
             try:
                 current, total = map(int, progress.split("/"))
-                remaining = total - current
-                minutes_left = max(1, remaining // 100)
-                time_text = f"{minutes_left} min left"
-            except Exception:
-                time_text = "Unknown time"
+                remaining = max(0, total - current)
 
-            active_text += f"🔴 **{district}** — {cog} ({progress}) ⏳ {time_text}\n"
+                previous = last_invasion_progress.get(district)
+
+                eta_text = "calculating..."
+
+                if previous:
+                    previous_current = previous.get("current", current)
+                    previous_time = previous.get("time", now)
+
+                    elapsed_seconds = max(1, now - previous_time)
+                    defeated = max(0, current - previous_current)
+
+                    if defeated > 0:
+                        cogs_per_minute = defeated / (elapsed_seconds / 60)
+                        minutes_left = remaining / cogs_per_minute
+
+                        if minutes_left < 1:
+                            eta_text = "<1 min left"
+                        else:
+                            eta_text = f"{round(minutes_left)} min left"
+
+                last_invasion_progress[district] = {
+                    "current": current,
+                    "total": total,
+                    "time": now
+                }
+
+            except Exception:
+                eta_text = "Unknown time"
+
+            active_text += (
+                f"🔴 **{district}** — {cog} ({progress}) "
+                f"⏳ {eta_text}\n"
+            )
+
         else:
             available_text += f"🟢 **{district}** — {population} toons\n"
+
+    for saved_district in list(last_invasion_progress.keys()):
+        if saved_district not in active_districts:
+            del last_invasion_progress[saved_district]
 
     embed.add_field(
         name="Active Invasions",
@@ -490,12 +530,13 @@ async def update_fo_panel():
 
         sorted_fos = sorted(
             field_offices.items(),
-            key=lambda x: x[1].get("difficulty", 0)
+            key=lambda x: x[1].get("difficulty", 0),
+            reverse=True
         )
 
         for zone_id, info in sorted_fos:
             street = FO_STREETS.get(str(zone_id), f"Zone {zone_id}")
-            difficulty = info.get("difficulty", 0) + 1
+            difficulty = int(info.get("difficulty", 0)) + 1
             stars = "<:Pete_Star:1499084954410291381>" * difficulty
             annexes = info.get("annexes", "?")
 
@@ -512,10 +553,34 @@ async def update_fo_panel():
             )
 
         embed.add_field(
-            name="Active",
+            name="Active Field Offices",
             value=text,
             inline=False
         )
+
+    try:
+        if fo_message is None:
+            fo_message = await get_panel_message(
+                channel,
+                "fo_message_id",
+                "<:Pete_Boiler:1498028470884892814> Field Offices"
+            )
+
+        if fo_message is None:
+            fo_message = await channel.send(embed=embed)
+            await save_panel_message("fo_message_id", fo_message)
+
+        elif data != last_fo_data:
+            await fo_message.edit(embed=embed)
+
+        last_fo_data = data
+
+    except discord.NotFound:
+        fo_message = await channel.send(embed=embed)
+        await save_panel_message("fo_message_id", fo_message)
+
+    except discord.HTTPException as e:
+        print("FO panel error:", e)
 
     try:
         if fo_message is None:
