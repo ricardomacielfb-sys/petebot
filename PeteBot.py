@@ -805,8 +805,9 @@ async def rank(interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
         if interaction.channel_id != RANK_CHANNEL_ID:
-            await interaction.edit_original_response(
-                content="📍 Use this command in the ranking channel."
+            await interaction.followup.send(
+                "📍 Use this command in the ranking channel.",
+                ephemeral=True
             )
             return
 
@@ -815,37 +816,30 @@ async def rank(interaction: discord.Interaction):
         user_id = str(interaction.user.id)
 
         if user_id not in users:
-            await interaction.edit_original_response(
-                content="You don't have any points yet."
+            await interaction.followup.send(
+                "You don't have any points yet.",
+                ephemeral=True
             )
             return
 
         points = users[user_id].get("points", 0)
         tasks = users[user_id].get("tasks", 0)
 
-        await interaction.edit_original_response(
+        await interaction.followup.send(
             content=(
                 f"📊 **Your Stats**\n\n"
                 f"<:Pete_Toon_Trophy:1499092782529380535> Points: **{points}**\n"
                 f"<:Pete_verified_by_lil_oldman:1499092210811932834> Completed Tasks: **{tasks}**"
-            )
+            ),
+            ephemeral=True
         )
 
     except Exception as e:
         print("Rank command error:", repr(e), flush=True)
-
-        try:
-            if interaction.response.is_done():
-                await interaction.edit_original_response(
-                    content="❌ An error occurred while loading your rank."
-                )
-            else:
-                await interaction.response.send_message(
-                    "❌ An error occurred while loading your rank.",
-                    ephemeral=True
-                )
-        except Exception as send_error:
-            print("Rank error response failed:", repr(send_error), flush=True)
+        await interaction.followup.send(
+            "❌ An error occurred while loading your rank.",
+            ephemeral=True
+        )
 
 
 @bot.tree.command(name="top", description="View the server ranking", guild=guild)
@@ -857,8 +851,9 @@ async def top(interaction: discord.Interaction, page: int = 1):
         await interaction.response.defer()
 
         if interaction.channel_id != RANK_CHANNEL_ID:
-            await interaction.edit_original_response(
-                content="📍 Use this command in the ranking channel."
+            await interaction.followup.send(
+                "📍 Use this command in the ranking channel.",
+                ephemeral=True
             )
             return
 
@@ -868,8 +863,8 @@ async def top(interaction: discord.Interaction, page: int = 1):
         users = data.get("users", {})
 
         if not users:
-            await interaction.edit_original_response(
-                content="No ranking data yet."
+            await interaction.followup.send(
+                "No ranking data yet."
             )
             return
 
@@ -882,8 +877,8 @@ async def top(interaction: discord.Interaction, page: int = 1):
         total_pages = max(1, (len(ranking) + 9) // 10)
 
         if page > total_pages:
-            await interaction.edit_original_response(
-                content=f"That page doesn't exist yet. Current max page: {total_pages}."
+            await interaction.followup.send(
+                f"That page doesn't exist yet. Current max page: {total_pages}."
             )
             return
 
@@ -904,25 +899,15 @@ async def top(interaction: discord.Interaction, page: int = 1):
                 f"<:Pete_verified_by_lil_oldman:1499092210811932834> {tasks} tasks\n"
             )
 
-        await interaction.edit_original_response(
-            content=f"🏆 **Ranking — Page {page}/{total_pages}**\n\n{text}"
+        await interaction.followup.send(
+            f"🏆 **Ranking — Page {page}/{total_pages}**\n\n{text}"
         )
 
     except Exception as e:
         print("Top command error:", repr(e), flush=True)
-
-        try:
-            if interaction.response.is_done():
-                await interaction.edit_original_response(
-                    content="❌ An error occurred while loading the ranking."
-                )
-            else:
-                await interaction.response.send_message(
-                    "❌ An error occurred while loading the ranking.",
-                    ephemeral=True
-                )
-        except Exception as send_error:
-            print("Top error response failed:", repr(send_error), flush=True)
+        await interaction.followup.send(
+            "❌ An error occurred while loading the ranking."
+        )
 
 
 @bot.tree.command(name="promotions", description="View promoted members", guild=guild)
@@ -933,8 +918,9 @@ async def promotions(interaction: discord.Interaction):
         await interaction.response.defer()
 
         if interaction.channel_id != PROMOTION_CHANNEL_ID:
-            await interaction.edit_original_response(
-                content="📍 Use this command in the promoted channel."
+            await interaction.followup.send(
+                "📍 Use this command in the promoted channel.",
+                ephemeral=True
             )
             return
 
@@ -942,8 +928,8 @@ async def promotions(interaction: discord.Interaction):
         promotions_data = data.get("last_promotions", {})
 
         if not promotions_data:
-            await interaction.edit_original_response(
-                content="No promoted members found."
+            await interaction.followup.send(
+                "No promoted members found."
             )
             return
 
@@ -959,25 +945,15 @@ async def promotions(interaction: discord.Interaction):
 
         text = "\n".join(lines)
 
-        await interaction.edit_original_response(
-            content=f"📈 **Promoted Members**\n\n{text}"
+        await interaction.followup.send(
+            f"📈 **Promoted Members**\n\n{text}"
         )
 
     except Exception as e:
         print("Promotions command error:", repr(e), flush=True)
-
-        try:
-            if interaction.response.is_done():
-                await interaction.edit_original_response(
-                    content="❌ Error loading promotions."
-                )
-            else:
-                await interaction.response.send_message(
-                    "❌ Error loading promotions.",
-                    ephemeral=True
-                )
-        except Exception as send_error:
-            print("Promotions error response failed:", repr(send_error), flush=True)
+        await interaction.followup.send(
+            "❌ Error loading promotions."
+        )
 
 
 
