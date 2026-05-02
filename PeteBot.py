@@ -43,6 +43,7 @@ fo_message = None
 last_invasion_data = None
 last_fo_data = None
 last_invasion_progress = {}
+invasion_speed_history = {}  # 👈 ADICIONA AQUI
 processing_messages = set()
 last_promotions = {}
 
@@ -364,7 +365,7 @@ async def test(interaction: discord.Interaction):
 
 @tasks.loop(minutes=1)
 async def update_invasions_channel():
-    global invasion_message, last_invasion_data, last_invasion_progress
+    global invasion_message, last_invasion_data, last_invasion_progress, invasion_speed_history
 
     channel = await get_channel_safe(INVASION_CHANNEL_ID)
     if channel is None:
@@ -401,7 +402,6 @@ async def update_invasions_channel():
 
     active_text = ""
     available_text = ""
-
     active_districts = set()
 
     for district, population in districts.items():
@@ -416,7 +416,6 @@ async def update_invasions_channel():
                 remaining = max(0, total - current)
 
                 previous = last_invasion_progress.get(district)
-
                 eta_text = "calculating..."
 
                 if previous:
@@ -427,13 +426,25 @@ async def update_invasions_channel():
                     defeated = max(0, current - previous_current)
 
                     if defeated > 0:
-                        cogs_per_minute = defeated / (elapsed_seconds / 60)
-                        minutes_left = remaining / cogs_per_minute
+                        speed = defeated / (elapsed_seconds / 60)
 
-                        if minutes_left < 1:
-                            eta_text = "<1 min left"
-                        else:
-                            eta_text = f"{round(minutes_left)} min left"
+                        history = invasion_speed_history.get(district, [])
+                        history.append(speed)
+
+                        if len(history) > 5:
+                            history.pop(0)
+
+                        invasion_speed_history[district] = history
+
+                        avg_speed = sum(history) / len(history)
+
+                        if avg_speed > 0:
+                            minutes_left = remaining / avg_speed
+
+                            if minutes_left < 1:
+                                eta_text = "<1 min left"
+                            else:
+                                eta_text = f"{round(minutes_left)} min left"
 
                 last_invasion_progress[district] = {
                     "current": current,
@@ -441,7 +452,8 @@ async def update_invasions_channel():
                     "time": now
                 }
 
-            except Exception:
+            except Exception as e:
+                print("Invasion ETA error:", e)
                 eta_text = "Unknown time"
 
             active_text += (
@@ -455,6 +467,10 @@ async def update_invasions_channel():
     for saved_district in list(last_invasion_progress.keys()):
         if saved_district not in active_districts:
             del last_invasion_progress[saved_district]
+
+    for saved_district in list(invasion_speed_history.keys()):
+        if saved_district not in active_districts:
+            del invasion_speed_history[saved_district]
 
     embed.add_field(
         name="Active Invasions",
