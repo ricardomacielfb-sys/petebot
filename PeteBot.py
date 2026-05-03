@@ -870,10 +870,11 @@ async def rank(interaction: discord.Interaction):
         await interaction.edit_original_response(
             content=(
                 f"📊 **Your Stats**\n\n"
-                f"<:Pete_Toon_Trophy:1499092782529380535> Points: **{points}**\n"
-                f"📝 Tasks: **{tasks}**\n"
-                f"🎉 Events: **{events}**\n"
-                f"<:Pete_verified_by_lil_oldman:1499092210811932834> Achievements: **{achievements}**"
+                f"{interaction.user.mention} — "
+                f"<:Pete_Toon_Trophy:1499092782529380535> **{points}** pts | "
+                f"📝 **{tasks}** tasks | "
+                f"🎉 **{events}** events | "
+                f"<:Pete_verified_by_lil_oldman:1499092210811932834> **{achievements}** achievements"
             )
         )
 
@@ -950,7 +951,7 @@ async def top(interaction: discord.Interaction, page: int = 1):
 
             text += (
                 f"{medal} <@{user_id}> — "
-                f"<:Pete_Toon_Trophy:1499092782529380535> {points} pts\n"
+                f"<:Pete_Toon_Trophy:1499092782529380535> {points} pts | "
                 f"📝 {tasks} tasks | "
                 f"🎉 {events} events | "
                 f"<:Pete_verified_by_lil_oldman:1499092210811932834> {achievements} achievements\n"
@@ -958,7 +959,7 @@ async def top(interaction: discord.Interaction, page: int = 1):
 
         await interaction.edit_original_response(
             content=(
-                f"<:Pete_verified_by_lil_oldman:1499092210811932834> "
+                f"<:Pete_Trophy:1500415799540846683> "
                 f"**Ranking — Page {page}/{total_pages}**\n\n{text}"
             )
         )
