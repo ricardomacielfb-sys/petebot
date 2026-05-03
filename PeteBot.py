@@ -864,12 +864,16 @@ async def rank(interaction: discord.Interaction):
 
         points = users[user_id].get("points", 0)
         tasks = users[user_id].get("tasks", 0)
+        events = users[user_id].get("events", 0)
+        achievements = users[user_id].get("achievements", 0)
 
         await interaction.edit_original_response(
             content=(
                 f"📊 **Your Stats**\n\n"
                 f"<:Pete_Toon_Trophy:1499092782529380535> Points: **{points}**\n"
-                f"<:Pete_verified_by_lil_oldman:1499092210811932834> Completed Tasks: **{tasks}**"
+                f"📝 Tasks: **{tasks}**\n"
+                f"🎉 Events: **{events}**\n"
+                f"<:Pete_verified_by_lil_oldman:1499092210811932834> Achievements: **{achievements}**"
             )
         )
 
@@ -941,15 +945,22 @@ async def top(interaction: discord.Interaction, page: int = 1):
             medal = medals[i - 1] if i <= 3 else f"{i}."
             points = info.get("points", 0)
             tasks = info.get("tasks", 0)
+            events = info.get("events", 0)
+            achievements = info.get("achievements", 0)
 
             text += (
                 f"{medal} <@{user_id}> — "
-                f"<:Pete_Toon_Trophy:1499092782529380535> {points} pts | "
-                f"<:Pete_verified_by_lil_oldman:1499092210811932834> {tasks} tasks\n"
+                f"<:Pete_Toon_Trophy:1499092782529380535> {points} pts\n"
+                f"📝 {tasks} tasks | "
+                f"🎉 {events} events | "
+                f"<:Pete_verified_by_lil_oldman:1499092210811932834> {achievements} achievements\n"
             )
 
         await interaction.edit_original_response(
-            content=f"🏆 **Ranking — Page {page}/{total_pages}**\n\n{text}"
+            content=(
+                f"<:Pete_verified_by_lil_oldman:1499092210811932834> "
+                f"**Ranking — Page {page}/{total_pages}**\n\n{text}"
+            )
         )
 
     except Exception as e:
