@@ -691,11 +691,10 @@ async def on_raw_reaction_remove(payload):
     data = load_data()
     data.setdefault("users", {})
     data.setdefault("validated_messages", {})
-    data.setdefault("last_promotions", {})
 
     message_id = str(payload.message_id)
 
-    if message_id not in data.get("validated_messages", {}):
+    if message_id not in data["validated_messages"]:
         return
 
     validation = data["validated_messages"][message_id]
@@ -703,14 +702,12 @@ async def on_raw_reaction_remove(payload):
     emoji_name = payload.emoji.name
     emoji_id = str(payload.emoji.id) if payload.emoji.id else None
 
-    saved_emoji = validation.get("emoji")
-    saved_emoji_id = validation.get("emoji_id")
-
-    if saved_emoji_id:
-        if emoji_id != saved_emoji_id:
+    # 🔍 valida se é o mesmo emoji usado na aprovação
+    if validation.get("emoji_id"):
+        if emoji_id != validation.get("emoji_id"):
             return
     else:
-        if emoji_name != saved_emoji:
+        if emoji_name != validation.get("emoji"):
             return
 
     guild_obj = bot.get_guild(payload.guild_id)
@@ -725,51 +722,63 @@ async def on_raw_reaction_remove(payload):
     if member.bot:
         return
 
+    # 🔒 só MOD pode remover pontuação
     if not any(role.id == MOD_ROLE_ID for role in member.roles):
         return
 
+    # 🔒 só o MESMO moderador que validou pode remover
     if str(member.id) != str(validation.get("moderator_id")):
         return
 
     author_id = str(validation.get("author_id"))
     points = int(validation.get("points", 0))
+    category = validation.get("category")
 
-    if author_id not in data.get("users", {}):
+    # fallback caso categoria não exista (compatibilidade antiga)
+    if not category:
+        emoji_data = POINT_EMOJIS.get(validation.get("emoji"))
+        if isinstance(emoji_data, dict):
+            category = emoji_data.get("type")
+        else:
+            category = "tasks"
+
+    if author_id not in data["users"]:
         return
 
-    old_points = data["users"][author_id].get("points", 0)
-    new_points = max(0, old_points - points)
+    # garante campos
+    data["users"][author_id].setdefault("points", 0)
+    data["users"][author_id].setdefault("tasks", 0)
+    data["users"][author_id].setdefault("events", 0)
+    data["users"][author_id].setdefault("achievements", 0)
 
-    old_rank_role_id = find_rank_role_id_by_points(old_points)
-    new_rank_role_id = find_rank_role_id_by_points(new_points)
-
-    data["users"][author_id]["points"] = new_points
-    data["users"][author_id]["tasks"] = max(
+    # 🔥 REMOVE PONTOS
+    data["users"][author_id]["points"] = max(
         0,
-        data["users"][author_id].get("tasks", 0) - 1
+        data["users"][author_id]["points"] - points
     )
 
-    del data["validated_messages"][message_id]
+    # 🔥 REMOVE DA CATEGORIA CORRETA
+    if category in ["tasks", "events", "achievements"]:
+        data["users"][author_id][category] = max(
+            0,
+            data["users"][author_id][category] - 1
+        )
 
-    if old_rank_role_id != new_rank_role_id:
-        data["last_promotions"][author_id] = str(new_rank_role_id)
+    # remove registro da mensagem validada
+    del data["validated_messages"][message_id]
 
     save_data(data)
 
-    target_member = await guild_obj.fetch_member(int(author_id))
-
-    if old_rank_role_id != new_rank_role_id:
-        await cleanup_promotion_messages(
+    # 🔄 atualiza rank
+    try:
+        target_member = await guild_obj.fetch_member(int(author_id))
+        await update_rank_role(
+            guild_obj,
             target_member,
-            old_rank_role_id,
-            keep_one=False
+            data["users"][author_id]["points"]
         )
-
-    await update_rank_role(
-        guild_obj,
-        target_member,
-        new_points
-    )
+    except Exception as e:
+        print("Rank update error after removal:", e)
 
 
 @bot.event
