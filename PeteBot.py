@@ -46,13 +46,16 @@ processing_messages = set()
 last_promotions = {}
 
 POINT_EMOJIS = {
-    "Pete_1_Point": 1,
-    "Pete_2_Points": 2,
-    "Pete_3_Points": 3,
-    "Pete_4_Points": 4,
-    "Pete_5_Points": 5,
-    "Pete_10Points": 10,
-    "Pete_50Points": 50
+    "Pete_1_Point": {"points": 1, "type": "tasks"},
+    "Pete_2_Points": {"points": 2, "type": "tasks"},
+    "Pete_3_Points": {"points": 3, "type": "tasks"},
+    "Pete_4_Points": {"points": 4, "type": "tasks"},
+    "Pete_5_Points": {"points": 5, "type": "tasks"},
+
+    "Pete_10Points": {"points": 10, "type": "events"},
+
+    "Pete_10Points_Achievements": {"points": 10, "type": "achievements"},
+    "Pete_50Points_Achievements": {"points": 50, "type": "achievements"}
 }
 
 FO_STREETS = {
@@ -630,19 +633,36 @@ async def on_raw_reaction_add(payload):
 
         author_id = str(author.id)
         moderator_id = str(member.id)
-        points = POINT_EMOJIS[emoji_name]
 
-        data["users"].setdefault(author_id, {"points": 0, "tasks": 0})
+        # 🔥 NOVO SISTEMA (categoria + pontos)
+        emoji_data = POINT_EMOJIS[emoji_name]
+        points = emoji_data["points"]
+        category = emoji_data["type"]
 
+        # 🔥 garante estrutura completa
+        data["users"].setdefault(author_id, {
+            "points": 0,
+            "tasks": 0,
+            "events": 0,
+            "achievements": 0
+        })
+
+        # 🔥 garante campos mesmo em usuários antigos
+        data["users"][author_id].setdefault("tasks", 0)
+        data["users"][author_id].setdefault("events", 0)
+        data["users"][author_id].setdefault("achievements", 0)
+
+        # 🔥 soma pontos
         data["users"][author_id]["points"] += points
-        data["users"][author_id]["tasks"] += 1
+        data["users"][author_id][category] += 1
 
         data["validated_messages"][message_id] = {
             "author_id": author_id,
             "moderator_id": moderator_id,
             "emoji": emoji_name,
             "emoji_id": emoji_id,
-            "points": points
+            "points": points,
+            "category": category  # 👈 salva categoria também
         }
 
         save_data(data)
@@ -654,7 +674,7 @@ async def on_raw_reaction_add(payload):
             data["users"][author_id]["points"]
         )
 
-        print(f"{author} recebeu {points} ponto(s).")
+        print(f"{author} recebeu {points} ponto(s) ({category}).")
 
     except Exception as e:
         print("Reaction add error:", e)
