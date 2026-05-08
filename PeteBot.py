@@ -7,6 +7,12 @@ import asyncio   # ✅ correto
 import os
 from aiohttp import web
 
+# 🔥 ARQUIVOS PERSISTENTES
+DATA_DIR = "/data"
+
+RANKING_FILE = os.path.join(DATA_DIR, "ranking.json")
+PANELS_FILE = os.path.join(DATA_DIR, "panels.json")
+
 async def health_check(request):
     return web.Response(text="PeteBot is running!")
 
@@ -87,38 +93,84 @@ RANK_ROLES = [
 
 
 def load_data():
-    if not os.path.exists("ranking.json"):
-        return {"users": {}, "validated_messages": {}, "last_promotions": {}}
+    try:
+        if not os.path.exists(RANKING_FILE):
+            return {
+                "users": {},
+                "validated_messages": {},
+                "last_promotions": {}
+            }
 
-    with open("ranking.json", "r") as f:
-        data = json.load(f)
+        with open(RANKING_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
 
-    data.setdefault("users", {})
-    data.setdefault("validated_messages", {})
-    data.setdefault("last_promotions", {})
+        data.setdefault("users", {})
+        data.setdefault("validated_messages", {})
+        data.setdefault("last_promotions", {})
 
-    if isinstance(data["validated_messages"], list):
-        data["validated_messages"] = {}
+        if isinstance(data["validated_messages"], list):
+            data["validated_messages"] = {}
 
-    return data
+        for user_id in data["users"]:
+            data["users"][user_id].setdefault("points", 0)
+            data["users"][user_id].setdefault("tasks", 0)
+            data["users"][user_id].setdefault("events", 0)
+            data["users"][user_id].setdefault("achievements", 0)
+
+        return data
+
+    except json.JSONDecodeError as e:
+        print("JSON ERROR:", e)
+
+        return {
+            "users": {},
+            "validated_messages": {},
+            "last_promotions": {}
+        }
+
+    except Exception as e:
+        print("LOAD DATA ERROR:", e)
+
+        return {
+            "users": {},
+            "validated_messages": {},
+            "last_promotions": {}
+        }
 
 
 def save_data(data):
-    with open("ranking.json", "w") as f:
-        json.dump(data, f, indent=4)
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+
+        with open(RANKING_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+
+    except Exception as e:
+        print("SAVE DATA ERROR:", e)
 
 
 def load_panel_data():
-    if not os.path.exists("panels.json"):
-        return {}
+    try:
+        if not os.path.exists(PANELS_FILE):
+            return {}
 
-    with open("panels.json", "r") as f:
-        return json.load(f)
+        with open(PANELS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    except Exception as e:
+        print("LOAD PANELS ERROR:", e)
+        return {}
 
 
 def save_panel_data(data):
-    with open("panels.json", "w") as f:
-        json.dump(data, f, indent=4)
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+
+        with open(PANELS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+
+    except Exception as e:
+        print("SAVE PANELS ERROR:", e)
 
 
 class MeuBot(discord.Client):
