@@ -117,6 +117,12 @@ def load_data():
             data["users"][user_id].setdefault("events", 0)
             data["users"][user_id].setdefault("achievements", 0)
 
+        # 🔥 RECALCULA TUDO BASEADO NAS VALIDAÇÕES
+        data = recalculate_user_stats(data)
+
+        # 🔥 SALVA DADOS CORRIGIDOS
+        save_data(data)
+
         return data
 
     except json.JSONDecodeError as e:
@@ -147,6 +153,44 @@ def save_data(data):
 
     except Exception as e:
         print("SAVE DATA ERROR:", e)
+
+
+# 🔥 NOVA FUNÇÃO
+def recalculate_user_stats(data):
+    users = {}
+
+    for message_id, validation in data.get("validated_messages", {}).items():
+        author_id = str(validation.get("author_id"))
+
+        if not author_id:
+            continue
+
+        points = int(validation.get("points", 0))
+        category = validation.get("category")
+
+        if not category:
+            emoji_name = validation.get("emoji")
+            emoji_data = POINT_EMOJIS.get(emoji_name)
+
+            if isinstance(emoji_data, dict):
+                category = emoji_data.get("type")
+            else:
+                category = "tasks"
+
+        users.setdefault(author_id, {
+            "points": 0,
+            "tasks": 0,
+            "events": 0,
+            "achievements": 0
+        })
+
+        users[author_id]["points"] += points
+
+        if category in ["tasks", "events", "achievements"]:
+            users[author_id][category] += 1
+
+    data["users"] = users
+    return data
 
 
 def load_panel_data():
